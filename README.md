@@ -10,24 +10,20 @@
 
 ---
 
-## 🛠️ Quick Installation (Terminal Walkthrough)
+## 🛠️ Quick Installation
 
-To set up the project locally on your workstation, execute the following commands in order from your terminal inside the `tensorvoid` directory:
+To set up the project locally on your workstation, we use a single automated make command. From your terminal inside the `tensorvoid` directory, run:
 
-### Step 1: Create a Python Virtual Environment
 ```bash
-python3 -m venv venv
+make setup
 ```
 
-### Step 2: Activate the Virtual Environment
+This will automatically create your Python virtual environment and install the package globally within that environment. 
+
+Once finished, simply activate the environment:
+
 ```bash
 source venv/bin/activate
-```
-
-### Step 3: Install the Package in Editable (`-e`) Mode
-This registers the global binary `tensorvoid` inside your virtual environment's bin folder, so you can run it from anywhere while maintaining active development links:
-```bash
-pip install -e .
 ```
 
 ---
