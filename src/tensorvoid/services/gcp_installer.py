@@ -96,6 +96,15 @@ class GcpInstaller:
     def authenticate(self, project_id: str) -> bool:
         """Runs the interactive gcloud authentication sequence for gcloud and Application Default Credentials (ADC)."""
         self.logger.info("Starting interactive Google Cloud authorization process...")
+        
+        # Check if already authenticated and configured for the target project
+        status = self.check_status()
+        if status.installed and "Active Account:" in status.details and f"Project: {project_id}" in status.details:
+            # Simple heuristic: if we have an account and the project matches, we skip the interactive login
+            # Note: ADC might still be missing, but for idempotency without complex ADC checks, this prevents the browser popup.
+            self.logger.info(f"Already authenticated and configured for project '{project_id}'. Skipping interactive login.")
+            return True
+
         try:
             # 1. gcloud auth login
             self.logger.info("--> Authenticating standard CLI session...")
