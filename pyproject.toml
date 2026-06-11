@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tensorvoid"
+version = "0.1.0"
+description = "A cyber-mechanical terminal setup suite for Android development and GCP integration."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Nikola Djuric"}
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+]
+dependencies = [
+    "click>=8.1.0",
+    "rich>=13.0.0",
+    "prompt-toolkit>=3.0.30",
+]
+
+[project.scripts]
+tensorvoid = "tensorvoid.__main__:main"
