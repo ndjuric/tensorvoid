@@ -63,7 +63,7 @@ class TerminalUi:
         )
         self.console.print(Panel(banner, border_style="green", expand=False))
 
-    def display_status_table(self) -> None:
+    def display_status_table(self) -> dict:
         """Checks and prints a high-density, structured system component status table."""
         self.console.print("\n[bold cyan]📡 [SCANNING] Reading current system environment...[/]")
         
@@ -95,28 +95,40 @@ class TerminalUi:
         add_row_helper(sdk_status.component_name, sdk_status.installed, sdk_status.details)
         add_row_helper(antigravity_status.component_name, antigravity_status.installed, antigravity_status.details)
         
-        profile_cell = "[bold green]✔ INJECTED[/]" if profile_ok else "[bold yellow]⚠ UNCONFIGURED[/]"
+        profile_cell = "[bold green]✔ CONFIGURED[/]" if profile_ok else "[bold yellow]⚠ UNCONFIGURED[/]"
         table.add_row("Shell Environment Paths", profile_cell, "[dim]Checking .bashrc/.zshrc integration[/]")
 
         self.console.print(table)
+        
+        return {
+            'java': java_status.installed,
+            'gcp': gcp_status.installed,
+            'sdk': sdk_status.installed,
+            'antigravity': antigravity_status.installed,
+            'profile': profile_ok,
+            'auth': gcp_status.installed and "Active Account:" in gcp_status.details
+        }
 
     def run_interactive_wizard(self, default_project: str = "PROJECT_NAME") -> None:
         """Launches the interactive arrow-key driven console menu."""
         while True:
             self.display_welcome()
-            self.display_status_table()
+            status_map = self.display_status_table()
             
+            def label(text: str, key: str, done_word: str = 'INSTALLED') -> str:
+                return f"{text} {'[✔ ' + done_word + ']' if status_map.get(key) else ''}"
+
             choice = radiolist_dialog(
                 title="Tensor Void Workspace Manager",
                 text="Select an action using arrow keys and press Enter:",
                 values=[
                     ('status', '1. Refresh Telemetry Matrix'),
-                    ('java', '2. Install System Java SDK (JDK 17)'),
-                    ('gcp', '3. Install Google Cloud SDK (gcloud CLI)'),
-                    ('auth', '4. Authenticate GCP & Link Project'),
-                    ('sdk', '5. Install Android SDK / ADT Components'),
-                    ('antigravity', '6. Install Antigravity IDE (Tarball)'),
-                    ('profile', '7. Inject Shell Environment Variables'),
+                    ('java', label('2. Install System Java SDK (JDK 17)', 'java')),
+                    ('gcp', label('3. Install Google Cloud SDK (gcloud CLI)', 'gcp')),
+                    ('auth', label('4. Authenticate GCP & Link Project', 'auth', 'CONFIGURED')),
+                    ('sdk', label('5. Install Android SDK / ADT Components', 'sdk')),
+                    ('antigravity', label('6. Install Antigravity IDE (Tarball)', 'antigravity')),
+                    ('profile', label('7. Inject Shell Environment Variables', 'profile', 'CONFIGURED')),
                     ('all', '8. Run Full Installation Pipeline (Sequential)'),
                     ('exit', '9. Exit Workspace Wizard'),
                 ],
