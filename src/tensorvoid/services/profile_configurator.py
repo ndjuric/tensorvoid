@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import re
 from pathlib import Path
 from tensorvoid.core.logger_setup import LoggerSetup
 from tensorvoid.vfs.fs import FS
@@ -43,6 +44,28 @@ class ProfileConfigurator:
             self._inject_into_profile(zshrc, block_text)
             
         return True
+
+    def update_project(self, project_id: str) -> None:
+        """Updates the project ID in the active shell profiles if the configuration block exists."""
+        bashrc = self.fs.get_bashrc_path()
+        zshrc = self.fs.get_zshrc_path()
+        
+        if self.fs.check_exists(bashrc) and self._has_marker(bashrc):
+            self._update_project_in_profile(bashrc, project_id)
+            
+        if self.fs.check_exists(zshrc) and self._has_marker(zshrc):
+            self._update_project_in_profile(zshrc, project_id)
+
+    def _update_project_in_profile(self, path: Path, project_id: str) -> None:
+        """Replaces the existing GOOGLE_CLOUD_PROJECT line within the configuration block."""
+        content = self.fs.read_text(path)
+        pattern = r'(export GOOGLE_CLOUD_PROJECT=")[^"]*(")'
+        new_content = re.sub(pattern, rf'\g<1>{project_id}\g<2>', content)
+        if content != new_content:
+            self.fs.write_text(path, new_content)
+            self.logger.info(f"Updated GOOGLE_CLOUD_PROJECT to {project_id} in {path.name}.")
+        else:
+            self.logger.info(f"GOOGLE_CLOUD_PROJECT in {path.name} is already set to {project_id}.")
 
     def _has_marker(self, path: Path) -> bool:
         """Scans a file to determine if the Tensor Void marker block is present."""
