@@ -129,8 +129,10 @@ class TerminalUi:
                     ('sdk', label('5. Install Android SDK / ADT Components', 'sdk')),
                     ('antigravity', label('6. Install Antigravity IDE (Tarball)', 'antigravity')),
                     ('profile', label('7. Inject Shell Environment Variables', 'profile', 'CONFIGURED')),
-                    ('all', '8. Run Full Installation Pipeline (Sequential)'),
-                    ('exit', '9. Exit Workspace Wizard'),
+                    ('change_project', '8. Change Active GCP Project'),
+                    ('change_account', '9. Re-authenticate / Change GCP Account'),
+                    ('all', '10. Run Full Installation Pipeline (Sequential)'),
+                    ('exit', '11. Exit Workspace Wizard'),
                 ],
                 style=self._STYLE
             ).run()
@@ -204,6 +206,49 @@ class TerminalUi:
             self._print_result(success, "Profile path configuration")
             return
 
+        if choice == 'change_project':
+            project_id = input_dialog(
+                title="Change Active Project",
+                text="Enter the new Google Cloud Project ID:",
+                style=self._STYLE
+            ).run()
+            
+            if project_id and project_id.strip():
+                project = project_id.strip()
+                self.console.print(f"\n[bold cyan]🔧 Updating active project to '{project}'...[/]")
+                
+                # Update gcloud config
+                gcp_success = self.gcp.set_active_project(project)
+                
+                # Update shell profiles
+                self.profile.update_project(project)
+                
+                if gcp_success:
+                    self.console.print(f"\n[bold green]✔ [SUCCESS] Active project changed to '{project}'![/]")
+                    self.console.print("[bold yellow]⚠ Note: You may need to restart your terminal or run `source ~/.zshrc` (or `source ~/.bashrc`) for the new environment variables to take effect in this shell.[/]")
+                else:
+                    self.console.print(f"\n[bold red]✖ [FAILURE] Failed to change active project.[/]")
+            return
+
+        if choice == 'change_account':
+            project_id = input_dialog(
+                title="GCP Account Re-authentication",
+                text=f"Enter the target GCP Project ID for the new account (default is {default_project}):",
+                style=self._STYLE
+            ).run()
+            
+            project = project_id.strip() if project_id else default_project
+            self.console.print(f"\n[bold cyan]🔐 Launching interactive authentication sequence to change GCP Account/Project '{project}'...[/]")
+            success = self.gcp.authenticate(project, force=True)
+            if success:
+                # Also update shell profile with the new project
+                self.profile.update_project(project)
+                self.console.print(f"\n[bold green]✔ [SUCCESS] Re-authenticated with GCP and configured for project '{project}'![/]")
+                self.console.print("[bold yellow]⚠ Note: You may need to restart your terminal or run `source ~/.zshrc` (or `source ~/.bashrc`) for the new environment variables to take effect in this shell.[/]")
+            else:
+                self.console.print(f"\n[bold red]✖ [FAILURE] Failed or cancelled GCP re-authentication.[/]")
+            return
+
         if choice == 'all':
             self._run_all_pipeline(default_project)
 
@@ -219,35 +264,51 @@ class TerminalUi:
         project = project_id.strip() if project_id else default_project
         
         # 1. Java
-        self.console.print("\n[bold cyan][PHASE 1] Installing Java OpenJDK 17...[/]")
-        if not self.java.check_status().installed and not self.java.install():
-            self.console.print("[bold red]✖ [HALT] Phase 1 failed. Aborting pipeline.[/]")
-            return
+        if self.java.check_status().installed:
+            self.console.print("\n[bold dim][PHASE 1] Java OpenJDK 17 is already installed. Skipping.[/]")
+        else:
+            self.console.print("\n[bold cyan][PHASE 1] Installing Java OpenJDK 17...[/]")
+            if not self.java.install():
+                self.console.print("[bold red]✖ [HALT] Phase 1 failed. Aborting pipeline.[/]")
+                return
 
         # 2. GCP
-        self.console.print("\n[bold cyan][PHASE 2] Installing Google Cloud SDK...[/]")
-        if not self.gcp.check_status().installed and not self.gcp.install():
-            self.console.print("[bold red]✖ [HALT] Phase 2 failed. Aborting pipeline.[/]")
-            return
+        if self.gcp.check_status().installed:
+            self.console.print("\n[bold dim][PHASE 2] Google Cloud SDK is already installed. Skipping.[/]")
+        else:
+            self.console.print("\n[bold cyan][PHASE 2] Installing Google Cloud SDK...[/]")
+            if not self.gcp.install():
+                self.console.print("[bold red]✖ [HALT] Phase 2 failed. Aborting pipeline.[/]")
+                return
 
         # 3. Android ADT
-        self.console.print("\n[bold cyan][PHASE 3] Installing Android SDK & platform components...[/]")
-        if not self.sdk.check_status().installed and not self.sdk.install():
-            self.console.print("[bold red]✖ [HALT] Phase 3 failed. Aborting pipeline.[/]")
-            return
+        if self.sdk.check_status().installed:
+            self.console.print("\n[bold dim][PHASE 3] Android SDK & platform components are already installed. Skipping.[/]")
+        else:
+            self.console.print("\n[bold cyan][PHASE 3] Installing Android SDK & platform components...[/]")
+            if not self.sdk.install():
+                self.console.print("[bold red]✖ [HALT] Phase 3 failed. Aborting pipeline.[/]")
+                return
 
         # 4. Antigravity
-        self.console.print("\n[bold cyan][PHASE 4] Extracting and setting up Antigravity IDE...[/]")
-        if not self.antigravity.check_status().installed and not self.antigravity.install():
-            self.console.print("[bold red]✖ [HALT] Phase 4 failed. Aborting pipeline.[/]")
-            return
+        if self.antigravity.check_status().installed:
+            self.console.print("\n[bold dim][PHASE 4] Antigravity IDE is already installed. Skipping.[/]")
+        else:
+            self.console.print("\n[bold cyan][PHASE 4] Extracting and setting up Antigravity IDE...[/]")
+            if not self.antigravity.install():
+                self.console.print("[bold red]✖ [HALT] Phase 4 failed. Aborting pipeline.[/]")
+                return
 
         # 5. Shell variables
-        self.console.print("\n[bold cyan][PHASE 5] Injecting profile environment variables...[/]")
-        self.profile.configure(project)
+        if self.profile.check_is_configured():
+            self.console.print("\n[bold dim][PHASE 5] Profile environment variables already configured. Updating project ID if necessary...[/]")
+            self.profile.update_project(project)
+        else:
+            self.console.print("\n[bold cyan][PHASE 5] Injecting profile environment variables...[/]")
+            self.profile.configure(project)
 
         # 6. GCP Auth
-        self.console.print("\n[bold cyan][PHASE 6] Running interactive GCP authentication sequence...[/]")
+        self.console.print("\n[bold cyan][PHASE 6] Running GCP authentication sequence...[/]")
         self.gcp.authenticate(project)
 
         self.console.print("\n[bold green]✔ [PIPELINE SUCCESSFUL] Your workspace is fully set up and ready to burn silicon! [/]")
